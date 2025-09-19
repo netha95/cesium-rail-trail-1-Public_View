@@ -1,1 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Lilydale–Warburton Rail Trail 3D</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://unpkg.com/cesium/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <script src="https://unpkg.com/cesium/Build/Cesium/Cesium.js"></script>
+  <style>html,body,#cesium{width:100%;height:100%;margin:0;padding:0}</style>
+</head>
+<body>
+<div id="cesium"></div>
+<script>
+Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJhOWQxOWVmNi02YjYwLTQzZWEtYTA1OS05NjljYzg2YTEwNjUiLCJpZCI6MzMzOTY3LCJpYXQiOjE3NTU3NTE0MzV9.RRNiRDqxm1pqXQeRLHFBQ4iPUV08wSvk1zaac6wbH9A';
+
+const USE_GOOGLE_TILES = True;
+const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
+
+const viewer = new Cesium.Viewer('cesium', {
+  terrain: Cesium.Terrain.fromWorldTerrain(),
+  timeline: false,
+  animation: false,
+  infoBox: true,
+  selectionIndicator: true
+});
+
+(async () => {
+  if (USE_GOOGLE_TILES) {
+    const tiles = await Cesium.GoogleMaps.createGooglePhotorealistic3DTileset({
+      apiKey: GOOGLE_MAPS_API_KEY
+    });
+    viewer.scene.primitives.add(tiles);
+  } else {
+    const osmBuildings = await Cesium.createOsmBuildingsAsync();
+    viewer.scene.primitives.add(osmBuildings);
+  }
+})();
+
+(async () => {
+  const trail = await Cesium.GeoJsonDataSource.load('Lilydale_to_Warburton_Rail_Trail.geojson', {
+    clampToGround: true
+  });
+  viewer.dataSources.add(trail);
+  trail.entities.values.forEach(e => {
+    if (e.polyline) {
+      e.polyline.material = Cesium.Color.WHITE;
+      e.polyline.width = 5;
+      e.polyline.clampToGround = true;
+    }
+  });
+  viewer.flyTo(trail, { duration: 2.0 });
+})();
+
+function colorFor(name = '') {
+  const n = name.toLowerCase();
+  if (n.includes('car park')) return Cesium.Color.GRAY;
+  if (n.includes('toilet'))   return Cesium.Color.DEEPSKYBLUE;
+  if (n.includes('picnic'))   return Cesium.Color.LIME;
+  if (n.includes('lookout'))  return Cesium.Color.ORANGE;
+  if (n.includes('water'))    return Cesium.Color.CYAN;
+  return Cesium.Color.YELLOW;
+}
+
+(async () => {
+  const wpts = await Cesium.GeoJsonDataSource.load('Lilydale_to_Warburton_Rail_Trail_waypoints.geojson', {
+    clampToGround: true
+  });
+  viewer.dataSources.add(wpts);
+  wpts.entities.values.forEach(ent => {
+    const nm = ent.properties?.Name?.getValue?.() || '';
+    ent.point = new Cesium.PointGraphics({
+      color: colorFor(nm),
+      pixelSize: 10,
+      outlineColor: Cesium.Color.BLACK,
+      outlineWidth: 1
+    });
+    ent.label = new Cesium.LabelGraphics({
+      text: nm || 'Waypoint',
+      font: '14px sans-serif',
+      style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      outlineWidth: 2,
+      pixelOffset: new Cesium.Cartesian2(0, -18),
+      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY
+    });
+  });
+})();
+</script>
+</body>
+</html>
 
